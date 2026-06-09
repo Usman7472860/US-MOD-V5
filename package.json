@@ -1,0 +1,25 @@
+{
+  "name": "us-mod-md-fresh",
+  "version": "1.0.0",
+  "description": "US MOD MD - Fresh WhatsApp Bot (menu + ping only)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:panel": "node --max-old-space-size=512 --optimize-for-size index.js"
+  },
+  "keywords": ["whatsapp-bot"],
+  "author": "USMAN KHAN CHACHAR",
+  "license": "MIT",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^v7.0.0-rc.9",
+    "axios": "^1.8.4",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.4.5",
+    "node-cache": "^5.1.2",
+    "pino": "^8.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
