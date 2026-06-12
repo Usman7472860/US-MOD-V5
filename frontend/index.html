@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>US BOT MD — Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.40.0/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0d12;
+      --bg2: #111520;
+      --bg3: #181d2a;
+      --card: #141927;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.14);
+      --green: #25d366;
+      --green2: #1aab50;
+      --glow: rgba(37,211,102,0.15);
+      --text: #f0f2f8;
+      --muted: #8892a4;
+      --red: #ff4d4d;
+      --yellow: #f5a623;
+      --blue: #4a9eff;
+    }
+    html, body, #root { height: 100%; width: 100%; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+    input, button { font-family: inherit; }
+
+    /* AUTH */
+    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+    .auth-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 36px 32px; width: 360px; }
+    .auth-logo { text-align: center; margin-bottom: 24px; }
+    .auth-logo .icon { font-size: 40px; }
+    .auth-logo h1 { font-size: 20px; font-weight: 800; margin-top: 8px; }
+    .auth-logo h1 span { color: var(--green); }
+    .auth-logo p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .auth-input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 14px; outline: none; margin-bottom: 12px; transition: border-color .2s; }
+    .auth-input:focus { border-color: var(--green); }
+    .auth-input::placeholder { color: var(--muted); }
+    .auth-btn { width: 100%; padding: 13px; background: var(--green); border: none; border-radius: 10px; color: #000; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px; transition: background .2s; }
+    .auth-btn:hover { background: var(--green2); }
+    .auth-switch { text-align: center; margin-top: 16px; font-size: 13px; color: var(--muted); }
+    .auth-switch a { color: var(--green); cursor: pointer; text-decoration: none; font-weight: 500; }
+    .err-msg { background: rgba(255,77,77,0.1); border: 1px solid rgba(255,77,77,0.3); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 12px; }
+
+    /* LAYOUT */
+    .layout { display: flex; flex-direction: column; height: 100vh; }
+    .topnav { background: var(--bg2); border-bottom: 1px solid var(--border); height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 34px; height: 34px; background: var(--green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .logo-text { font-size: 16px; font-weight: 800; }
+    .logo-text span { color: var(--green); }
+    .nav-tabs { display: flex; gap: 4px; background: var(--bg3); border-radius: 10px; padding: 4px; }
+    .nav-tab { padding: 6px 16px; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--muted); background: transparent; border: none; cursor: pointer; transition: all .2s; }
+    .nav-tab.active { background: var(--green); color: #000; }
+    .user-badge { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px 5px 6px; }
+    .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--green); color: #000; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .main-body { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 200px; flex-shrink: 0; background: var(--bg2); border-right: 1px solid var(--border); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+    .sb-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 8px 8px 4px; margin-top: 6px; }
+    .sb-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border: none; background: transparent; width: 100%; text-align: left; transition: all .15s; }
+    .sb-item.active { background: var(--glow); color: var(--green); border: 1px solid rgba(37,211,102,0.2); }
+    .sb-item i { font-size: 16px; width: 18px; }
+    .sb-badge { margin-left: auto; background: var(--green); color: #000; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 2px 6px; }
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+
+    /* CARDS */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card { padding: 14px 16px; }
+    .stat-label { font-size: 11px; color: var(--muted); font-weight: 500; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+    .stat-val { font-size: 24px; font-weight: 800; line-height: 1; }
+    .stat-sub { font-size: 11px; margin-top: 4px; font-weight: 500; }
+
+    /* SESSIONS */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 14px; font-weight: 700; }
+    .session-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .session-card { padding: 16px; transition: border-color .2s; }
+    .session-card.connected { border-color: rgba(37,211,102,0.3); }
+    .sess-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+    .sess-info { display: flex; align-items: center; gap: 10px; }
+    .sess-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--bg3); border: 2px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 18px; position: relative; flex-shrink: 0; }
+    .dot { position: absolute; bottom: 0; right: 0; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--card); }
+    .dot.online { background: var(--green); }
+    .dot.offline { background: #555; }
+    .dot.connecting { background: var(--yellow); }
+    .sess-name { font-size: 13px; font-weight: 700; }
+    .sess-num { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+    .pill.online { background: rgba(37,211,102,0.12); color: var(--green); }
+    .pill.offline { background: rgba(136,136,136,0.12); color: #888; }
+    .pill.connecting { background: rgba(245,166,35,0.12); color: var(--yellow); }
+    .sess-stats { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 10px 0; }
+    .ss-item { flex: 1; text-align: center; }
+    .ss-val { font-size: 14px; font-weight: 800; }
+    .ss-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .sess-actions { display: flex; gap: 8px; }
+    .btn { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .15s; }
+    .btn-green { background: var(--green); color: #000; }
+    .btn-green:hover { background: var(--green2); }
+    .btn-outline { background: transparent; border: 1px solid var(--border2); color: var(--muted); }
+    .btn-outline:hover { border-color: var(--green); color: var(--green); }
+    .btn-red { background: rgba(255,77,77,0.12); border: 1px solid rgba(255,77,77,0.3); color: var(--red); }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+    .add-card { background: transparent; border: 2px dashed var(--border2); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 32px; transition: all .2s; }
+    .add-card:hover { border-color: var(--green); background: var(--glow); }
+    .add-card i { font-size: 28px; color: var(--muted); }
+    .add-card:hover i, .add-card:hover span { color: var(--green); }
+    .add-card span { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+    /* PAIRING */
+    .pair-wrap { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+    .pair-card { padding: 26px; }
+    .pair-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .pair-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+    .method-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .method-opt { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 14px; cursor: pointer; text-align: center; transition: all .2s; }
+    .method-opt.active { border-color: var(--green); background: var(--glow); }
+    .method-opt i { font-size: 22px; color: var(--muted); display: block; margin-bottom: 6px; }
+    .method-opt.active i { color: var(--green); }
+    .method-opt .mt { font-size: 12px; font-weight: 700; }
+    .method-opt .ms { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .inp-label { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 7px; display: block; }
+    .inp { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: 9px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none; transition: border-color .2s; margin-bottom: 14px; }
+    .inp:focus { border-color: var(--green); }
+    .inp::placeholder { color: var(--muted); }
+    .code-box { background: var(--bg3); border: 2px solid rgba(37,211,102,0.35); border-radius: 12px; padding: 22px; text-align: center; margin: 14px 0; }
+    .code-val { font-size: 34px; font-weight: 900; letter-spacing: 8px; color: var(--green); font-family: monospace; }
+    .code-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .steps { display: flex; flex-direction: column; gap: 12px; }
+    .step { display: flex; align-items: flex-start; gap: 12px; }
+    .step-n { width: 22px; height: 22px; border-radius: 50%; background: var(--green); color: #000; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .step-t { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .step-t strong { color: var(--text); }
+
+    /* SETTINGS */
+    .settings-wrap { max-width: 600px; display: flex; flex-direction: column; gap: 14px; }
+    .sett-section { overflow: hidden; }
+    .sett-head { padding: 13px 18px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); background: var(--bg3); }
+    .sett-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .sett-row:last-child { border-bottom: none; }
+    .sett-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .sett-desc { font-size: 11px; color: var(--muted); }
+    .toggle { width: 40px; height: 22px; border-radius: 11px; border: none; cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
+    .toggle.on { background: var(--green); }
+    .toggle.off { background: var(--bg3); border: 1px solid var(--border2); }
+    .toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 3px; transition: left .2s; }
+    .toggle.on::after { left: 21px; }
+    .toggle.off::after { left: 3px; }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-wrap { display: flex; align-items: center; justify-content: center; height: 200px; gap: 12px; color: var(--muted); font-size: 14px; }
+    .uptime-bar { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+    .uptime-bar i { font-size: 12px; color: var(--green); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const API = 'http://localhost:3001/api';
+
+// ── helpers ──────────────────────────────────────────────
+function api(path, opts = {}, token) {
+  return fetch(API + path, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    ...opts
+  }).then(r => r.json());
+}
+
+function formatUptime(ms) {
+  if (!ms) return '—';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+// ── AUTH PAGE ─────────────────────────────────────────────
+function AuthPage({ onLogin }) {
+  const [mode, setMode] = useState('login');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!username || !password) return setErr('Fill all fields');
+    setErr(''); setLoading(true);
+    try {
+      const data = await api(`/auth/${mode}`, {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      if (data.token) {
+        localStorage.setItem('usbot_token', data.token);
+        localStorage.setItem('usbot_user', JSON.stringify(data.user));
+        onLogin(data.token, data.user);
+      } else {
+        setErr(data.error || 'Something went wrong');
+      }
+    } catch { setErr('Cannot connect to server'); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <div className="icon">💬</div>
+          <h1>US <span>BOT</span> MD</h1>
+          <p>{mode === 'login' ? 'Sign in to your dashboard' : 'Create your account'}</p>
+        </div>
+        {err && <div className="err-msg">{err}</div>}
+        <form onSubmit={submit}>
+          <input className="auth-input" placeholder="Username" value={username}
+            onChange={e => setUsername(e.target.value)} />
+          <input className="auth-input" placeholder="Password" type="password" value={password}
+            onChange={e => setPassword(e.target.value)} />
+          <button className="auth-btn" type="submit" disabled={loading}>
+            {loading ? '...' : mode === 'login' ? 'Login' : 'Create Account'}
+          </button>
+        </form>
+        <div className="auth-switch">
+          {mode === 'login'
+            ? <><a onClick={() => setMode('register')}>Create account</a></>
+            : <>Already have one? <a onClick={() => setMode('login')}>Login</a></>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SESSION CARD ──────────────────────────────────────────
+function SessionCard({ sess, token, onRefresh, onPair }) {
+  const [loading, setLoading] = useState(false);
+
+  async function stop() {
+    setLoading(true);
+    await api(`/sessions/${sess.id}/stop`, { method: 'POST' }, token);
+    onRefresh(); setLoading(false);
+  }
+  async function restart() {
+    setLoading(true);
+    await api(`/sessions/${sess.id}/restart`, {
+      method: 'POST', body: JSON.stringify({ sessionName: sess.name })
+    }, token);
+    onRefresh(); setLoading(false);
+  }
+  async function del() {
+    if (!confirm(`Delete "${sess.name}"? This cannot be undone.`)) return;
+    setLoading(true);
+    await api(`/sessions/${sess.id}`, { method: 'DELETE' }, token);
+    onRefresh(); setLoading(false);
+  }
+
+  const statusMap = {
+    online: 'online', offline: 'offline', connecting: 'connecting',
+    reconnecting: 'connecting', pairing: 'connecting', qr: 'connecting'
+  };
+  const dotClass = statusMap[sess.status] || 'offline';
+
+  return (
+    <div className={`card session-card ${sess.status === 'online' ? 'connected' : ''}`}>
+      <div className="sess-top">
+        <div className="sess-info">
+          <div className="sess-avatar">
+            🤖
+            <div className={`dot ${dotClass}`}></div>
+          </div>
+          <div>
+            <div className="sess-name">{sess.name}</div>
+            <div className="sess-num">
+              {sess.number ? `+${sess.number}` : sess.status === 'pairing' ? 'Enter pairing code' : sess.status === 'connecting' ? 'Connecting...' : 'Offline'}
+            </div>
+          </div>
+        </div>
+        <span className={`pill ${dotClass}`}>{sess.status}</span>
+      </div>
+
+      {sess.status === 'online' && (
+        <div className="uptime-bar">
+          <i className="ti ti-clock"></i> {formatUptime(sess.uptime)}
+        </div>
+      )}
+
+      <div className="sess-stats">
+        <div className="ss-item">
+          <div className="ss-val">{sess.msgCount || 0}</div>
+          <div className="ss-lbl">Messages</div>
+        </div>
+        <div className="ss-item">
+          <div className="ss-val">{sess.status === 'online' ? '✓' : '—'}</div>
+          <div className="ss-lbl">Status</div>
+        </div>
+        <div className="ss-item">
+          <div className="ss-val">{formatUptime(sess.uptime)}</div>
+          <div className="ss-lbl">Uptime</div>
+        </div>
+      </div>
+
+      <div className="sess-actions">
+        {sess.status === 'online' && (
+          <button className="btn btn-red btn-sm" onClick={stop} disabled={loading}>
+            Disconnect
+          </button>
+        )}
+        {(sess.status === 'offline') && (
+          <button className="btn btn-green btn-sm" onClick={restart} disabled={loading}>
+            Reconnect
+          </button>
+        )}
+        {(sess.status === 'connecting' || sess.status === 'pairing') && (
+          <button className="btn btn-outline btn-sm" onClick={() => onPair(sess.id, sess.name)}>
+            Enter Code
+          </button>
+        )}
+        <button className="btn btn-outline btn-sm" onClick={del} disabled={loading}>
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── DASHBOARD PAGE ────────────────────────────────────────
+function DashboardPage({ token, onPair, setPage }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const data = await api('/sessions', {}, token);
+    setSessions(data.sessions || []);
+    setLoading(false);
+  }, [token]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const online = sessions.filter(s => s.status === 'online').length;
+  const totalMsgs = sessions.reduce((a, s) => a + (s.msgCount || 0), 0);
+
+  return (
+    <div>
+      <div className="stats-row">
+        <div className="card stat-card">
+          <div className="stat-label"><i className="ti ti-device-mobile"></i> Sessions</div>
+          <div className="stat-val" style={{color: 'var(--green)'}}>{sessions.length}</div>
+          <div className="stat-sub" style={{color: 'var(--green)'}}>{online} online</div>
+        </div>
+        <div className="card stat-card">
+          <div className="stat-label"><i className="ti ti-message-circle"></i> Msgs Today</div>
+          <div className="stat-val">{totalMsgs.toLocaleString()}</div>
+          <div className="stat-sub" style={{color: 'var(--muted)'}}>All sessions</div>
+        </div>
+        <div className="card stat-card">
+          <div className="stat-label"><i className="ti ti-wifi"></i> Online</div>
+          <div className="stat-val" style={{color: online > 0 ? 'var(--green)' : 'var(--red)'}}>
+            {online}/{sessions.length}
+          </div>
+          <div className="stat-sub" style={{color: 'var(--muted)'}}>Active bots</div>
+        </div>
+        <div className="card stat-card">
+          <div className="stat-label"><i className="ti ti-refresh"></i> Refresh</div>
+          <div className="stat-val" style={{color: 'var(--blue)', fontSize: '14px', cursor: 'pointer'}}
+            onClick={refresh}>↻ Sync</div>
+          <div className="stat-sub" style={{color: 'var(--muted)'}}>Click to update</div>
+        </div>
+      </div>
+
+      <div className="section-header">
+        <div className="section-title">Bot Sessions</div>
+        <button className="btn btn-green btn-sm" onClick={() => setPage('pair')}>
+          + Add Session
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="loading-wrap">
+          <div className="spinner"></div> Loading sessions...
+        </div>
+      ) : (
+        <div className="session-grid">
+          {sessions.map(sess => (
+            <SessionCard key={sess.id} sess={sess} token={token}
+              onRefresh={refresh} onPair={onPair} />
+          ))}
+          <div className="add-card" onClick={() => setPage('pair')}>
+            <i className="ti ti-plus"></i>
+            <span>Add New Session</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PAIR PAGE ─────────────────────────────────────────────
+function PairPage({ token, prefillSessionId }) {
+  const [method, setMethod] = useState('code');
+  const [sessionName, setSessionName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState(1); // 1=form, 2=code shown
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [activeSessionId, setActiveSessionId] = useState(prefillSessionId || '');
+
+  async function createAndPair() {
+    if (!sessionName || !phone) return setErr('Fill all fields');
+    setErr(''); setLoading(true);
+    try {
+      // Step 1: Create session
+      const created = await api('/sessions/create', {
+        method: 'POST',
+        body: JSON.stringify({ sessionName })
+      }, token);
+
+      if (created.error) { setErr(created.error); setLoading(false); return; }
+
+      const sid = created.sessionId;
+      setActiveSessionId(sid);
+
+      // Wait 3s for Baileys to init
+      await new Promise(r => setTimeout(r, 3000));
+
+      // Step 2: Request pairing code
+      const paired = await api(`/sessions/${sid}/pair`, {
+        method: 'POST',
+        body: JSON.stringify({ phoneNumber: phone })
+      }, token);
+
+      if (paired.error) { setErr(paired.error); setLoading(false); return; }
+      setCode(paired.code);
+      setStep(2);
+    } catch { setErr('Server error. Make sure backend is running.'); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="pair-wrap">
+      <div className="card pair-card">
+        <div className="pair-title">🔗 Connect WhatsApp Bot</div>
+        <div className="pair-sub">Enter your number and get a pairing code. No QR scan needed.</div>
+
+        <div className="method-row">
+          <div className={`method-opt ${method === 'code' ? 'active' : ''}`}
+            onClick={() => setMethod('code')}>
+            <i className="ti ti-hash"></i>
+            <div className="mt">Pairing Code</div>
+            <div className="ms">Type code in WhatsApp</div>
+          </div>
+          <div className={`method-opt ${method === 'qr' ? 'active' : ''}`}
+            onClick={() => setMethod('qr')}>
+            <i className="ti ti-qrcode"></i>
+            <div className="mt">QR Code</div>
+            <div className="ms">Scan with camera</div>
+          </div>
+        </div>
+
+        {err && <div className="err-msg">{err}</div>}
+
+        {step === 1 && (
+          <>
+            <label className="inp-label">Session Name</label>
+            <input className="inp" placeholder="e.g. US MOD MD V5"
+              value={sessionName} onChange={e => setSessionName(e.target.value)} />
+            <label className="inp-label">WhatsApp Number (with country code)</label>
+            <input className="inp" placeholder="+92 300 1234567"
+              value={phone} onChange={e => setPhone(e.target.value)} />
+            <button className="btn btn-green" style={{width:'100%',padding:'13px',fontSize:'14px'}}
+              onClick={createAndPair} disabled={loading}>
+              {loading ? 'Starting bot...' : 'Get Pairing Code'}
+            </button>
+          </>
+        )}
+
+        {step === 2 && code && (
+          <>
+            <div className="code-box">
+              <div className="code-val">{code}</div>
+              <div className="code-hint">Valid 60 seconds — enter in WhatsApp → Linked Devices</div>
+            </div>
+            <button className="btn btn-outline" style={{width:'100%'}}
+              onClick={() => { setStep(1); setCode(''); }}>
+              Generate New Code
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="card pair-card">
+        <div className="section-title" style={{marginBottom:'16px'}}>How to link</div>
+        <div className="steps">
+          {[
+            ['Enter session name and WhatsApp number', 'above'],
+            ['Click', '"Get Pairing Code"'],
+            ['Open WhatsApp → Settings → Linked Devices → Link a Device'],
+            ['Tap', '"Link with phone number"', 'and enter the code'],
+            ['Bot connects automatically and appears in Dashboard']
+          ].map((parts, i) => (
+            <div className="step" key={i}>
+              <div className="step-n">{i+1}</div>
+              <div className="step-t">
+                {parts.map((p, j) => p.startsWith('"') ? <strong key={j}>{p} </strong> : p + ' ')}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SETTINGS PAGE ─────────────────────────────────────────
+function SettingsPage({ token, sessions }) {
+  const [selSess, setSelSess] = useState('');
+  const [settings, setSettings] = useState(null);
+  const [saved, setSaved] = useState(false);
+
+  async function loadSettings(sid) {
+    setSelSess(sid);
+    const data = await api(`/bot/${sid}/settings`, {}, token);
+    setSettings(data.settings || {});
+  }
+
+  async function saveSettings() {
+    await api(`/bot/${selSess}/settings`, {
+      method: 'PUT', body: JSON.stringify(settings)
+    }, token);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  const toggles = [
+    { key: 'autoRead', label: 'Auto Read Messages', desc: 'Mark all incoming as read' },
+    { key: 'autoStatusView', label: 'Auto Status View', desc: 'View all status updates automatically' },
+    { key: 'antiDelete', label: 'Anti-Delete', desc: 'Recover deleted messages' },
+    { key: 'viewOnceReveal', label: 'ViewOnce Reveal', desc: 'Auto-save view-once media' },
+    { key: 'namazAlerts', label: 'Namaz / Azan Alerts', desc: 'Prayer time alerts (Lahore)' },
+    { key: 'jummaMubarak', label: 'Jumma Mubarak', desc: 'Friday Dhuhr auto message' },
+    { key: 'publicMode', label: 'Public Mode', desc: 'Allow all users to use commands' },
+    { key: 'simAutoDetect', label: 'SIM Auto-Detection', desc: 'Pakistani number auto lookup' },
+  ];
+
+  return (
+    <div className="settings-wrap">
+      <div className="card pair-card" style={{padding:'16px 18px'}}>
+        <label className="inp-label">Select Session</label>
+        <select className="inp" style={{marginBottom:0}} value={selSess}
+          onChange={e => loadSettings(e.target.value)}>
+          <option value="">— Choose a session —</option>
+          {(sessions||[]).map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {settings && (
+        <>
+          <div className="card sett-section">
+            <div className="sett-head">Bot Behavior</div>
+            {toggles.slice(0,4).map(t => (
+              <div className="sett-row" key={t.key}>
+                <div>
+                  <div className="sett-name">{t.label}</div>
+                  <div className="sett-desc">{t.desc}</div>
+                </div>
+                <button className={`toggle ${settings[t.key] ? 'on' : 'off'}`}
+                  onClick={() => setSettings(p => ({...p, [t.key]: !p[t.key]}))}></button>
+              </div>
+            ))}
+          </div>
+
+          <div className="card sett-section">
+            <div className="sett-head">Islamic Features</div>
+            {toggles.slice(4,6).map(t => (
+              <div className="sett-row" key={t.key}>
+                <div>
+                  <div className="sett-name">{t.label}</div>
+                  <div className="sett-desc">{t.desc}</div>
+                </div>
+                <button className={`toggle ${settings[t.key] ? 'on' : 'off'}`}
+                  onClick={() => setSettings(p => ({...p, [t.key]: !p[t.key]}))}></button>
+              </div>
+            ))}
+          </div>
+
+          <div className="card sett-section">
+            <div className="sett-head">Privacy</div>
+            {toggles.slice(6).map(t => (
+              <div className="sett-row" key={t.key}>
+                <div>
+                  <div className="sett-name">{t.label}</div>
+                  <div className="sett-desc">{t.desc}</div>
+                </div>
+                <button className={`toggle ${settings[t.key] ? 'on' : 'off'}`}
+                  onClick={() => setSettings(p => ({...p, [t.key]: !p[t.key]}))}></button>
+              </div>
+            ))}
+          </div>
+
+          <button className="btn btn-green" style={{padding:'12px 24px', fontSize:'14px'}}
+            onClick={saveSettings}>
+            {saved ? '✓ Saved!' : 'Save Settings'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── MAIN APP ──────────────────────────────────────────────
+function App() {
+  const [token, setToken] = useState(() => localStorage.getItem('usbot_token'));
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('usbot_user')); } catch { return null; }
+  });
+  const [page, setPage] = useState('dashboard');
+  const [pairSessionId, setPairSessionId] = useState(null);
+  const [sessions, setSessions] = useState([]);
+
+  function handleLogin(t, u) { setToken(t); setUser(u); }
+  function logout() {
+    localStorage.clear();
+    setToken(null); setUser(null);
+  }
+
+  function onPair(sessionId, name) {
+    setPairSessionId(sessionId);
+    setPage('pair');
+  }
+
+  // Load sessions for settings dropdown
+  useEffect(() => {
+    if (!token || page !== 'settings') return;
+    api('/sessions', {}, token).then(d => setSessions(d.sessions || []));
+  }, [token, page]);
+
+  if (!token) return <AuthPage onLogin={handleLogin} />;
+
+  const navTabs = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'pair', label: 'Pair Bot' },
+    { id: 'settings', label: 'Settings' }
+  ];
+
+  const sideItems = [
+    { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
+    { id: 'pair', icon: 'ti-link', label: 'Pair Device' },
+    { id: 'settings', icon: 'ti-settings', label: 'Settings' },
+    { id: 'logs', icon: 'ti-messages', label: 'Logs' },
+  ];
+
+  return (
+    <div className="layout">
+      <div className="topnav">
+        <div className="logo">
+          <div className="logo-icon">💬</div>
+          <div className="logo-text">US <span>BOT</span> MD</div>
+        </div>
+        <div className="nav-tabs">
+          {navTabs.map(t => (
+            <button key={t.id} className={`nav-tab ${page === t.id ? 'active' : ''}`}
+              onClick={() => setPage(t.id)}>{t.label}</button>
+          ))}
+        </div>
+        <div className="user-badge">
+          <div className="avatar">{(user?.username?.[0] || 'U').toUpperCase()}</div>
+          <span style={{fontSize:'12px',fontWeight:600}}>{user?.username || 'User'}</span>
+          <button onClick={logout} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:'11px',marginLeft:'4px'}}>
+            out
+          </button>
+        </div>
+      </div>
+
+      <div className="main-body">
+        <div className="sidebar">
+          <div className="sb-label">Menu</div>
+          {sideItems.map(item => (
+            <button key={item.id} className={`sb-item ${page === item.id ? 'active' : ''}`}
+              onClick={() => setPage(item.id)}>
+              <i className={`ti ${item.icon}`}></i>
+              {item.label}
+            </button>
+          ))}
+          <div className="sb-label">Account</div>
+          <button className="sb-item" onClick={logout}>
+            <i className="ti ti-logout"></i> Logout
+          </button>
+        </div>
+
+        <div className="content">
+          {page === 'dashboard' && (
+            <DashboardPage token={token} onPair={onPair} setPage={setPage} />
+          )}
+          {page === 'pair' && (
+            <PairPage token={token} prefillSessionId={pairSessionId} />
+          )}
+          {page === 'settings' && (
+            <SettingsPage token={token} sessions={sessions} />
+          )}
+          {page === 'logs' && (
+            <div style={{color:'var(--muted)',padding:'40px',textAlign:'center'}}>
+              📋 Logs coming soon...
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
