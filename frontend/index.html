@@ -170,7 +170,12 @@
 <script type="text/babel">
 const { useState, useEffect, useCallback } = React;
 
-const API = 'http://localhost:3001/api';
+// ⚠️ Apni Railway URL yahan daalo (deploy ke baad)
+const RAILWAY_URL = 'us-mod-v5-production.up.railway.app';
+
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001/api'
+  : `${RAILWAY_URL}/api`;
 
 // ── helpers ──────────────────────────────────────────────
 function api(path, opts = {}, token) {
