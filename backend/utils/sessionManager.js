@@ -159,7 +159,10 @@ async function startSession(userId, sessionId, sessionName, io) {
 
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = reason !== DisconnectReason.loggedOut;
+      // 515 = stream error (temp ban), 401 = logged out, 440 = replaced
+      const shouldReconnect = reason !== DisconnectReason.loggedOut
+        && reason !== 440  // replaced by another client
+        && reason !== 401; // unauthorized
 
       if (session) {
         session.status = shouldReconnect ? 'reconnecting' : 'offline';
