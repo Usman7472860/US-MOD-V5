@@ -94,7 +94,7 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`\n🤖 US BOT MD Backend running on port ${PORT}`);
-  console.log(`📡 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+  console.log(`📡 Frontend URL: ${process.env.FRONTEND_URL || 'https://us-mod-v5-production.up.railway.app'}`);
   console.log(`📁 Sessions Dir: ${process.env.SESSIONS_DIR || './sessions'}\n`);
 });
 
