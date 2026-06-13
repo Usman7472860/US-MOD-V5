@@ -3,7 +3,8 @@ const {
   DisconnectReason,
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
-  fetchLatestBaileysVersion
+  fetchLatestBaileysVersion,
+  Browsers
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const path = require('path');
@@ -97,7 +98,8 @@ async function startSession(userId, sessionId, sessionName, io) {
     },
     logger,
     printQRInTerminal: false,
-    browser: ['US BOT MD', 'Chrome', '3.0'],
+    // ✅ FIX: Correct browser fingerprint - WhatsApp accept karta hai
+    browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: false,
     markOnlineOnConnect: true,
   });
@@ -107,7 +109,9 @@ async function startSession(userId, sessionId, sessionName, io) {
     status: 'connecting',
     startTime: Date.now(),
     msgCount: 0,
-    sessionName: sessionName || sessionId
+    sessionName: sessionName || sessionId,
+    // ✅ Track whether pairing code has been requested
+    pairingRequested: false,
   });
 
   // Creds update
@@ -118,9 +122,11 @@ async function startSession(userId, sessionId, sessionName, io) {
     const { connection, lastDisconnect, qr, pairingCode } = update;
     const session = activeSessions.get(key);
 
+    // ✅ QR event — socket is now ready for pairing code request
     if (qr && session) {
       session.status = 'qr';
       session.qr = qr;
+      session.socketReady = true; // mark as ready
       activeSessions.set(key, session);
       emitStatus(userId, sessionId, 'qr', { qr });
     }
@@ -139,6 +145,7 @@ async function startSession(userId, sessionId, sessionName, io) {
         session.number = sock.user?.id?.split(':')[0] || null;
         session.qr = null;
         session.pairingCode = null;
+        session.socketReady = false;
         activeSessions.set(key, session);
 
         // Save number to info
@@ -158,6 +165,7 @@ async function startSession(userId, sessionId, sessionName, io) {
 
       if (session) {
         session.status = shouldReconnect ? 'reconnecting' : 'offline';
+        session.socketReady = false;
         activeSessions.set(key, session);
         emitStatus(userId, sessionId, session.status, {});
       }
@@ -186,17 +194,51 @@ async function startSession(userId, sessionId, sessionName, io) {
   return { success: true, sessionId };
 }
 
-// Request pairing code for a session
+// ✅ FIXED: Request pairing code - proper timing + number format check
 async function requestPairingCode(userId, sessionId, phoneNumber) {
   const key = `${userId}:${sessionId}`;
   const session = activeSessions.get(key);
 
   if (!session || !session.socket) {
-    return { success: false, error: 'Session not started or not connecting' };
+    return { success: false, error: 'Session not started' };
+  }
+
+  // Clean phone number — digits only
+  const cleanNumber = phoneNumber.replace(/[^0-9]/g, '');
+
+  // ✅ Country code check — must be 10+ digits (international format)
+  if (cleanNumber.length < 10) {
+    return { success: false, error: 'Phone number mein country code zaroor lagao (e.g. 923001234567)' };
+  }
+
+  // ✅ Already registered check — agar already logged in hai toh pairing ki zarurat nahi
+  if (session.socket.authState?.creds?.registered) {
+    return { success: false, error: 'Yeh session pehle se registered hai. Naya session banao.' };
+  }
+
+  // ✅ Wait for socket to be ready (QR event received means WS connection is up)
+  // Give it up to 15 seconds
+  const maxWait = 15000;
+  const interval = 500;
+  let waited = 0;
+
+  while (!session.socketReady && waited < maxWait) {
+    await new Promise(r => setTimeout(r, interval));
+    waited += interval;
+    // Re-fetch session in case it updated
+    const updated = activeSessions.get(key);
+    if (updated?.socketReady) break;
+    if (!updated) return { success: false, error: 'Session band ho gayi' };
+  }
+
+  const latestSession = activeSessions.get(key);
+  if (!latestSession?.socketReady) {
+    return { success: false, error: 'Socket ready nahi hua — thoda wait karo phir dobara try karo' };
   }
 
   try {
-    const code = await session.socket.requestPairingCode(phoneNumber.replace(/[^0-9]/g, ''));
+    const code = await latestSession.socket.requestPairingCode(cleanNumber);
+    console.log(`[Pairing] Code requested for ${cleanNumber}: ${code}`);
     return { success: true, code };
   } catch (err) {
     console.error(`[Pairing] Error:`, err.message);
