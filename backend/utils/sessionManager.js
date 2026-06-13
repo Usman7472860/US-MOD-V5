@@ -9,6 +9,42 @@ const {
 const pino = require('pino');
 const path = require('path');
 const fs = require('fs-extra');
+const { SocksProxyAgent } = require('socks-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
+// Free SOCKS5 proxies — WhatsApp ke liye (rotate karta hai)
+const FREE_PROXIES = [
+  'socks5://72.195.34.58:4145',
+  'socks5://72.195.34.41:4145', 
+  'socks5://98.162.25.7:31653',
+  'socks5://98.162.96.41:4145',
+  'socks5://192.111.129.145:16894',
+  'socks5://192.111.137.35:4145',
+  'socks5://192.111.130.5:17002',
+  'socks5://72.221.232.21:4145',
+];
+
+function getRandomProxy() {
+  // If custom proxy set in env, use that
+  if (process.env.PROXY_URL) return process.env.PROXY_URL;
+  // Otherwise pick random from list
+  return FREE_PROXIES[Math.floor(Math.random() * FREE_PROXIES.length)];
+}
+
+function createProxyAgent() {
+  try {
+    const proxyUrl = getRandomProxy();
+    console.log(`[Proxy] Using: ${proxyUrl}`);
+    if (proxyUrl.startsWith('socks')) {
+      return new SocksProxyAgent(proxyUrl);
+    } else {
+      return new HttpsProxyAgent(proxyUrl);
+    }
+  } catch (e) {
+    console.log('[Proxy] Failed to create agent, connecting direct');
+    return null;
+  }
+}
 
 const SESSIONS_DIR = process.env.SESSIONS_DIR || path.join(__dirname, '../sessions');
 
@@ -90,6 +126,9 @@ async function startSession(userId, sessionId, sessionName, io) {
 
   const logger = pino({ level: 'silent' });
 
+  // Create proxy agent for WhatsApp connection
+  const agent = createProxyAgent();
+
   const sock = makeWASocket({
     version,
     auth: {
@@ -105,6 +144,7 @@ async function startSession(userId, sessionId, sessionName, io) {
     defaultQueryTimeoutMs: 60000,
     keepAliveIntervalMs: 10000,
     retryRequestDelayMs: 2000,
+    ...(agent ? { agent } : {}),
   });
 
   activeSessions.set(key, {
